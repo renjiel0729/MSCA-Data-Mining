@@ -1,0 +1,113 @@
+---
+title: "HW6"
+author: "Renjie Liu"
+date: "3/11/2021"
+output: html_document
+---
+### 1. Re-use the scaled train and test dataset created for Assignment 4 Part 1 for logistic regression.
+```{r}
+library(MASS)
+library(rpart)
+require(e1071)
+library(class)
+library(tidyr)
+library(caret)
+
+data <- read.csv('diabetes_preprocessed_nodummies.csv')
+data <- data[,c(3,5:12,1,2,4,13:37)]
+data <-na.omit(data)
+
+levels(data$race) <- c(1,2,3,4,5)
+
+data[,10:37] <- data.frame(lapply(data[,10:37],as.factor))
+data <- data[,c(37,1:36)]
+```
+
+```{r}
+set.seed(1234)
+train_index<- sample(nrow(data), size = 0.7*nrow(data))
+train <- data[train_index,]
+test <- data[-train_index,]
+
+train <- as.data.frame(train)
+test <- as.data.frame(test)
+
+```
+
+### 2. Build KNN, SVM and Naive Bayes models using this train dataset
+#### Run k nearest neighbors with this training and test data, iterating k from 2 to 5. Build confusion matrix to evaluate the models and choose the best out of these based on effectiveness of prediction of readmitted.
+#### Build SVM and Naive Bayes model and similarly build confusion matrix for both
+```{r}
+knn.train <- cbind(train[1:9],lapply(train[10:36],as.integer))
+knn2 <- knn(train = knn.train,test = knn.train,cl = knn.train$readmitted,k=2)
+confusionMatrix(knn2,knn.train$readmitted)
+
+knn3 <- knn(train = knn.train,test = knn.train,cl = knn.train$readmitted,k=3)
+confusionMatrix(knn3,knn.train$readmitted)
+
+knn4 <- knn(train = knn.train,test = knn.train,cl = knn.train$readmitted,k=4)
+confusionMatrix(knn4,knn.train$readmitted)
+
+knn5 <- knn(train = knn.train,test = knn.train,cl = knn.train$readmitted,k=5)
+confusionMatrix(knn5,knn.train$readmitted)
+
+# Best result when k = 3.
+
+set.seed(1234)
+svm1 <- svm(readmitted~age+discharge_disposition_id+time_in_hospital+num_lab_procedures+num_procedures+num_medications+number_emergency+gender, data =train,kernel="linear")
+confusionMatrix(predict(svm1,train),train[,1])
+
+nb1 <- naiveBayes(readmitted ~ ., data = train)
+confusionMatrix(predict(nb1,train),train[,1])
+```
+
+### 3. Now compare the chosen KNN, SVM and NB models on the basis of various metrics such as accuracy, recall, f1-score etc. and summarize the results.
+```{r}
+# From the confusion matrix, I know that When k =3 and k=2 have very similar accuracy. As the K increases more than 3, the accuracy for the model actually decreases. Although the accuracy for k=3 80.9% is higher than the accuracy for the k=2 80.8%, but the recall for k = 2 73.5% is higher than that of k=3 68.7&. 
+# The SVM model has a accuracy of 60.7%, and it was actually the model wtih the lowest accuracy among KNN, SVM and Navie Bayes. The Navie Bayes havs an accuracy of 62.7%, slightly higher than the accuracy of SVM. Among the three models, knn with k = 3 has the best accuracy. All of the model's accuracy is higher than the no information rate = 60.3%, and it means that the models are meaningful. 
+
+```
+
+### 4. Create the logistic, classification tree, lda and qda models using the exact same parameters, seed and train data as in the previous assignments.
+```{r}
+lg1 <- glm(readmitted~.,data=train[,c(1,2:19,22:28,31:32,36:37)], family = binomial(link = logit))
+
+lda.model <- lda(readmitted~.,data=train[,c(1,2:19,22:28,31:32,36:37)])
+qda.model <- qda(readmitted~.,data=train[,c(1,2:19,22:28,31:32,36:37)])
+
+tree1<- rpart(readmitted~., data = train, method = "class")
+
+```
+
+
+### 5. Predict the values of test data using all the 7 models and club them together in a dataframe. Create a rule to count predicted value from all models, assigning the predicted values with count higher than 3 as the ensemble model's predicted value.
+```{r}
+knn.test <- cbind(test[1:9],lapply(test[10:36],as.integer))
+knn3.pred <- knn(train = knn.train,test = knn.test,cl = knn.train$readmitted,k=3)
+
+svm.pred <- predict(svm1,test)
+nb.pred <- predict(nb1,test)
+
+lda.pred <- predict(lda.model,test[,c(1,2:19,22:28,31:32,36:37)])$class
+qda.pred <- predict(qda.model, test[,c(1,2:19,22:28,31:32,36:37)])$class
+
+tree.pred <- predict(tree1,test,type= 'class')
+
+lg.pred <- predict(lg1,test[,c(1,2:19,22:28,31:32,36:37)])
+lg.pred <- ifelse(lg.pred > 0.5, 1, 0)
+
+ensemble <- NULL
+ensemble <- cbind(knn3.pred,svm.pred,nb.pred,lda.pred,qda.pred,tree.pred,lg.pred )
+ensemble <- as.data.frame(ensemble)
+
+ensemble$count <- ensemble$knn3.pred+ensemble$svm.pred+ensemble$nb.pred+ensemble$lda.pred+ensemble$qda.pred+ensemble$tree.pred+ensemble$lg.pred-6
+
+ensemble$final <- ifelse(ensemble$count >3,1,0)
+ensemble$final <- as.factor(ensemble$final)
+head(ensemble)
+confusionMatrix(ensemble$final,test$readmitted)
+
+
+# The accuracy of the ensemble is only 62.33%. The ensemble's accuracy is higher than the accuracy for the SVM and Navie Bayes, but the accuracy is significantly lower than the accuracy of the knn model. The recall for the ensemble is only 14.8%, significantly lower than that of the knn model. Therefore, the ensemble should not be used to make predictions. Instead, we should use the knn model to make the final predictions. 
+```
+

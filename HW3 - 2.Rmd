@@ -1,0 +1,116 @@
+---
+title: "HW3 - 2"
+author: "Renjie Liu"
+date: "2/14/2021"
+output: html_document
+---
+1. Split sample into two random samples of sizes 70% and 30%.
+```{r}
+library(ggplot2)
+library(mlbench)
+library(dplyr)
+data("BostonHousing")
+set.seed(1234)
+
+train_index <- sample(seq_len(nrow(BostonHousing)),size = floor(0.7*nrow(BostonHousing)))
+
+train <- BostonHousing[train_index,]
+
+test <- BostonHousing[-train_index,]
+```
+
+2.Perform principal components of numeric variables from the Boston Housing Data on training sample.
+```{r}
+train <- scale(train[,c(-4,-9)])
+
+test <- scale(test[,c(-4,-9)])
+
+pca_train <- princomp(train)
+```
+
+
+3.Generate Scree Plots and select number of components you would retain.
+```{r}
+VAF = cumsum(pca_train$sdev^2/sum(pca_train$sdev^2))
+
+data.frame(n = 1:length(VAF),Variance.Account.For = VAF) %>% 
+  ggplot(aes(x=n, y=Variance.Account.For)) +
+  geom_line() +
+  geom_point()+
+  geom_text(aes(label=VAF),vjust = -1)
+
+"I will choose 5 componets because the curve is becoming flat after 5 components. 5 components will have a VAF of around 85%"
+```
+
+4.Plot Component 1 loadings (x-axis) versus Component 2 loadings (y-axis). Use this plot to interpret and name the Components. Repeat this by plotting Component (1) separately versus all components you decided to retain from Step 3 (Component 3, Component 4 etc). Can you interpret each of the components you decide to retain. In case a component is not interpretable, note that.
+```{r}
+biplot(pca_train$scores[1:10,c(1,2)],pca_train$loadings[,c(1,2)])
+
+
+"Component 1 has the variances of all the predictors. For Component 1 , nox, age, indus, and ptratio have large positive effect on component 1. dis,medv, and rm have large negative effect on component 1. The lower the component 1 the higher the house price. I think component 1 is a good measure of all the information for a house, especially for the house price. 
+
+For Component 2, dis, ptratio have very large positive effect on component 1. Medv,age, and nox have very large negative effect on component 2. Component 2 also measures the house price, and also measures the distance of the house."
+```
+
+```{r}
+biplot(pca_train$scores[1:10,c(1,3)],pca_train$loadings[,c(1,3)])
+
+"component 3 has limited information for the variabes mentioned in component 1 and component 2. However, component 3 is heavily affected by crim, tax, zn, and b. Therefore, I believe that component 3 measures the crime rate for the house."
+```
+
+```{r}
+biplot(pca_train$scores[1:10,c(1,4)],pca_train$loadings[,c(1,4)])
+```
+component 4 has limited information for variabels in component 1 ,2,3. Component 4 is largely impacted by ptratio. The ptratio measures the pupil-teacher ratio by town. Therefore, i think component 4 measures the educatioal quality for the house's town.
+
+
+```{r}
+biplot(pca_train$scores[1:10,c(1,5)],pca_train$loadings[,c(1,5)])
+```
+Component 5 has even less information than 3. It is largely affted by b, crim, zn, and tax. it is similar to component 3 because it is also heavily impacted by zn, crim, and tax,b. However, the most notable variable impact component 5 is b. Therefore , component 4 measure the blacks porpotition for the house town
+
+
+5. Perform the following:
+a.Show that Component loadings are orthogonal.
+```{r}
+round(t(pca_train$loadings)%*%pca_train$loadings,5)
+"The matrix is a diagonal matrix that has non-zero values on the diagonal and zeroes off the diagonal. This matrix shows that the component loadings are orthogonal"
+```
+
+b.Show that Component scores are orthogonal.
+```{r}
+round(cov(pca_train$scores),4)
+"The matrix is a diagonal matrix that has non-zero values on the diagonal and zeroes off the diagonal. This matrix shows that the component scores are orthogonal"
+```
+
+c. Perform Test validation of Principal Components solution.
+i. For Test validation, you will have to
+1. predict the component scores in the Test [ using the predict()
+function in R and transform function in Python
+```{r}
+test_factor <- predict(pca_train,test)
+head(test_factor)
+```
+2. matrix multiply the predicted component scores from (1) above
+with transpose of component loadings you derived from training
+data set from Step 2 above. Refer to Page 52 of Class Lecture for
+Session 4 for details.
+```{r}
+multiplyed <- test_factor[,1:5] %*% t(pca_train$loadings[,1:5])
+head(multiplyed)
+```
+d. Compute the Variance Account For (R2) in the Test sample. That yields a
+measure of Test performance.
+```{r}
+cor(as.vector(test),as.vector(multiplyed))^2
+#VAF of 0.82 for the test performance
+```
+
+e.[OPTIONAL] Rotate the component loadings using varimax rotation. Look at the Loadings from the varimax rotation. Does it yield any different Interpretation of the Principal Components?
+```{r}
+rotate <- varimax(pca_train$loadings)
+
+biplot(pca_train$scores[1:10,c(1,2)],rotate$rotmat[,c(1,2)])
+"Yes the component is very different from the abvoe biplot of component 1 and component 2"
+```
+

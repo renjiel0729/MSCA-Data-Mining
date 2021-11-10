@@ -1,0 +1,90 @@
+---
+title: "HW3-1"
+author: "Renjie Liu"
+date: "2/7/2021"
+output: html_document
+---
+```{r}
+library(scatterplot3d)
+library(MASS)
+library(poLCA)
+data <- read.csv("/Users/renjieliu/Desktop/Winter21/Mining/HW/HW3/GermanCredit.csv")
+
+#summary(data)
+#View(data)
+#names(data)
+```
+
+
+```{r}
+data1 <- data
+data1 <- as.data.frame(data1)
+
+data1$Class <- as.factor(data1$Class)
+levels(data1$Class) <- c(1,2)
+data1$Checking <- factor(max.col(data1[,12:15]),ordered = TRUE)
+data1$Credit <- factor(max.col(data1[,16:20]),ordered = TRUE)
+
+
+
+set.seed(123)
+train_index<- sample(nrow(data1), size = 0.7*nrow(data1))
+train <- data1[train_index,]
+test <- data1[-train_index,]
+
+```
+
+1. Perform latent class analysis of only the categorical variables for market segmentation
+using (function poLCA in package poLCA). Remember: the local optima problem is big
+for all the clustering and latent class methods. The data for analysis should only include
+the variables that you think have business relevance for market segmentation.
+
+```{r}
+f1=cbind(Class,Checking,Credit)~1
+set.seed(123)
+results.1=poLCA(f1,train,nclass=2,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+results.2=poLCA(f1,train,nclass=3,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+results.3=poLCA(f1,train,nclass=4,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+
+
+set.seed(321)
+results.4=poLCA(f1,train,nclass=2,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+results.5=poLCA(f1,train,nclass=3,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+results.6=poLCA(f1,train,nclass=4,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE)
+```
+
+
+2. Determine 2, 3,..,K class/cluster solutions. Remember to run from multiple random
+starts. Use AIC criterion and interpretation based on graphs to interpret LCA solutions.
+```{r}
+results.1$aic
+results.2$aic
+results.3$aic
+
+results.4$aic
+results.5$aic
+results.6$aic
+#The best aic is for nclass = 3
+```
+3. Perform Test validation of LCA.
+a. For Test, use the centers class-conditional probabilities - probs - from training set as input to probs.start for test (generated from the training set LCA solution, as the starting point for test. Use similarity of relative class sizes and test class conditional probabilities as measures of stability.
+```{r}
+set.seed(321)
+start <- results.5$probs
+results.test=poLCA(f1,test,nclass=3,nrep=10,tol=.001,verbose=FALSE, graphs=TRUE,probs.start =start )
+results.test$probs
+results.5$probs
+#The class sizes between the train and the test is similar. The train data has class size roughtly 0.4,0.29,0.31. The test has class size 0.39, 0.23,0.38. The conditional probabilities are also similar between the train and test data. 
+```
+
+4. Look at the marginal distribution from the plot. Try to give a name to each of the classes.
+5. Was naming the classes easy? What was the difficulty? State in a few sentences
+```{r}
+# Class 1: Class one should be named as good class with bad financials. The social class is good for class one. The people have zero money or no checking account. Their credit history is also very bad they either only pay existing credit or have critical credit. 
+# Class 2: Class two should be named the poor with medium credit. The social class is bad for this class. Has no or very little money in their checking account. They only pay back existing credit at the bank.
+# Class 3: Class three should be named the rich who don't pay back money. Class 3 has good social class. They have more money in their checking account. However, their credit history are not very good. 
+#Naming the class is very easy. Since the three variables are categorical, it is easy to associate the each class with the categories. I specifically picked the class variable, so it will only has two possible value for the people. The other two variables also make sense becaue they are all financial categories. 
+```
+
+
+

@@ -1,0 +1,74 @@
+---
+title: "HW5-2"
+author: "Renjie Liu"
+date: "3/7/2021"
+output: html_document
+---
+#### 1. Use same train and test samples from logistic regression assignment (3); Dataset is : Diabetes.
+#### 2. R user – recommend to use undummy dataset. Attached in this announcement.
+```{r}
+library(rpart)
+library(MASS)
+library(caret)
+data <- read.csv('diabetes_preprocessed_nodummies.csv')
+data <- data[,c(3,5:12,1,2,4,13:37)]
+data[,10:37] <- data.frame(lapply(data[,10:37],as.factor))
+data <- data[,c(37,1:36)]
+```
+
+#### 3. Run LDA using select predictors and predict class results for train and holdout:
+```{r}
+set.seed(1234)
+train_index<- sample(nrow(data), size = 0.7*nrow(data))
+train <- data[train_index,]
+test <- data[-train_index,]
+
+train <- as.data.frame(train)
+test <- as.data.frame(test)
+
+
+train <- train[,c(1,2:19,22:28,31:32,36:37)]
+test <- test[,c(1,2:19,22:28,31:32,36:37)]
+
+lda.model = lda(train$readmitted~.,data=train)
+lda.train.pred <-predict(lda.model)$class 
+lda.test.pred <- predict(lda.model, newdata = test)$class
+```
+#### 4. Run QDA and predict class results for train and holdout:
+```{r}
+
+qda.model <- qda(readmitted~.,data=train)
+qda.train.pred <-predict(qda.model)$class
+qda.test.pred <- predict(qda.model, newdata = test)$class
+```
+#### 5. How often in train and test do LDA and QDA make the same prediction?
+```{r}
+confusionMatrix(lda.train.pred,qda.train.pred)
+confusionMatrix(lda.test.pred,qda.test.pred)
+# For the train set, The LDA and QDA will make the same prediction 82.2%.
+# For the test set, The LDA and QDA will make the same prediction 82.4%.
+
+```
+#### 6.Compare confusion matrix for Train and holdout for LDA results for validation. Do the same for QDA results. Ignore ‘ensemble’ from last question. It is a typo; not needed for this assignment.
+```{r}
+confusionMatrix(lda.train.pred,train[,1])
+confusionMatrix(lda.test.pred,test[,1])
+# For the lda train, the model has a accuracy of 63%
+# For the lda test, the model has a accuracy of 62%
+
+confusionMatrix(qda.train.pred,train[,1])
+confusionMatrix(qda.test.pred,test[,1])
+# For the qda train, the model has a accuracy of 62%
+# For the qda test, the model has a accuracy of 61%
+
+# Based on the accuracy, the lda is better to predict for this dataset, but still the accuracy is not very high. 
+```
+
+
+
+
+
+
+
+
+
